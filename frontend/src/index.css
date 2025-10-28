@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  /* Off-white background - easy on the eyes */
+  --color-background: oklch(98.5% 0.005 85);
+
+  /* Deep charcoal for text - good contrast */
+  --color-foreground: oklch(25% 0.01 265);
+
+  /* Card background - slightly lighter than main background */
+  --color-card: oklch(99.5% 0.003 85);
+  --color-card-foreground: oklch(25% 0.01 265);
+
+  /* Popover styling */
+  --color-popover: oklch(99.5% 0.003 85);
+  --color-popover-foreground: oklch(25% 0.01 265);
+
+  /* Pantone Greenery (15-0343) - main brand color */
+  --color-primary: oklch(68% 0.15 142);
+  --color-primary-foreground: oklch(100% 0 0);
+
+  /* Pantone Serenity Blue - soft secondary color */
+  --color-secondary: oklch(80% 0.08 240);
+  --color-secondary-foreground: oklch(25% 0.01 265);
+
+  /* Muted colors - light grey-green tint */
+  --color-muted: oklch(93% 0.02 142);
+  --color-muted-foreground: oklch(50% 0.02 142);
+
+  /* Pantone Living Coral - vibrant accent */
+  --color-accent: oklch(72% 0.14 35);
+  --color-accent-foreground: oklch(100% 0 0);
+
+  /* Pantone Red - for destructive actions */
+  --color-destructive: oklch(55% 0.22 25);
+  --color-destructive-foreground: oklch(100% 0 0);
+
+  /* Subtle borders with green tint */
+  --color-border: oklch(88% 0.015 142);
+  --color-input: oklch(88% 0.015 142);
+
+  /* Ring color matches primary */
+  --color-ring: oklch(68% 0.15 142);
+
+  --radius-lg: 0.5rem;
+  --radius-md: calc(0.5rem - 2px);
+  --radius-sm: calc(0.5rem - 4px);
+}
+
+.dark {
+  /* Dark mode with rich, saturated colors */
+
+  /* Deep charcoal background with subtle green tint */
+  --color-background: oklch(18% 0.02 142);
+  --color-foreground: oklch(95% 0.01 142);
+
+  /* Card background - slightly lighter */
+  --color-card: oklch(22% 0.02 142);
+  --color-card-foreground: oklch(95% 0.01 142);
+
+  /* Popover styling */
+  --color-popover: oklch(22% 0.02 142);
+  --color-popover-foreground: oklch(95% 0.01 142);
+
+  /* Brighter Pantone Greenery for dark mode */
+  --color-primary: oklch(75% 0.18 142);
+  --color-primary-foreground: oklch(15% 0.02 142);
+
+  /* Pantone Serenity Blue - adjusted for dark mode */
+  --color-secondary: oklch(35% 0.08 240);
+  --color-secondary-foreground: oklch(95% 0.01 142);
+
+  /* Muted colors */
+  --color-muted: oklch(28% 0.03 142);
+  --color-muted-foreground: oklch(65% 0.03 142);
+
+  /* Living Coral accent - vivid in dark mode */
+  --color-accent: oklch(68% 0.16 35);
+  --color-accent-foreground: oklch(15% 0.02 142);
+
+  /* Destructive red */
+  --color-destructive: oklch(60% 0.24 25);
+  --color-destructive-foreground: oklch(95% 0.01 142);
+
+  /* Borders */
+  --color-border: oklch(32% 0.03 142);
+  --color-input: oklch(32% 0.03 142);
+
+  /* Ring color */
+  --color-ring: oklch(75% 0.18 142);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-feature-settings: "rlig" 1, "calt" 1;
+}

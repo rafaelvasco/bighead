@@ -1,0 +1,15 @@
+# Project-wide ignores
+.DS_Store
+*.log
+.env
+.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
