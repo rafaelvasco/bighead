@@ -7,7 +7,7 @@ A full-stack application that uses RAG (Retrieval-Augmented Generation) to analy
 - **Document Upload**: Upload text and markdown files for analysis
 - **RAG-Powered Q&A**: Ask questions about your documents with source references showing `[filename]:[line-start]-[line-end]`
 - **AI Summarization**: Automatic document summarization with key insights
-- **Document Editor**: Advanced markdown/text editor with syntax highlighting
+- **Document Editor**: Advanced markdown editor with live preview
 - **Web Search Integration**: Perplexity API integration for comprehensive web search with AI-generated answers
 - **Document Creation from Search**: Create documents directly from web search results
 - **Admin Interface**: Database management and vector store inspection tools
@@ -20,7 +20,7 @@ A full-stack application that uses RAG (Retrieval-Augmented Generation) to analy
 - **Tailwind CSS** for styling
 - **ShadCN UI** for component library
 - **React Router** for navigation
-- **CodeMirror** for advanced text editing
+- **@uiw/react-md-editor** for markdown editing and preview
 - **React Markdown** for markdown rendering
 
 ### Backend
@@ -179,8 +179,7 @@ bighead/
    - Navigate to the document dashboard to view content
 
 2. **Document Editor**:
-   - Edit documents with the advanced markdown/text editor
-   - Real-time preview and syntax highlighting
+   - Edit documents with the advanced markdown editor with live preview
    - Changes are automatically saved and re-indexed
 
 3. **View Summary**:
