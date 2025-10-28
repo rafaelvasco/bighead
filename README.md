@@ -1,62 +1,95 @@
 # BigHead - AI-Powered Document Analyst
 
-A full-stack application that uses RAG (Retrieval-Augmented Generation) to analyze documents, answer questions, generate summaries, and provide autonomous agent suggestions with web search integration.
+A full-stack application that uses RAG (Retrieval-Augmented Generation) to analyze documents, answer questions, generate summaries, and provide web search integration capabilities.
 
 ## Features
 
 - **Document Upload**: Upload text and markdown files for analysis
-- **RAG-Powered Q&A**: Ask questions about your documents with source references showing `[filename]:[line-range]`
+- **RAG-Powered Q&A**: Ask questions about your documents with source references showing `[filename]:[line-start]-[line-end]`
 - **AI Summarization**: Automatic document summarization with key insights
-- **Autonomous Agent**: AI agent that suggests follow-up actions and research queries
+- **Document Editor**: Advanced markdown/text editor with syntax highlighting
 - **Web Search Integration**: Perplexity API integration for comprehensive web search with AI-generated answers
+- **Document Creation from Search**: Create documents directly from web search results
+- **Admin Interface**: Database management and vector store inspection tools
 - **Modern UI**: Clean, responsive interface built with React and ShadCN UI
 
 ## Tech Stack
 
 ### Frontend
-- **Vite** + **React** + **TypeScript**
+- **Vite** + **React 19** + **TypeScript**
 - **Tailwind CSS** for styling
 - **ShadCN UI** for component library
-- **Lucide React** for icons
+- **React Router** for navigation
+- **CodeMirror** for advanced text editing
+- **React Markdown** for markdown rendering
 
 ### Backend
 - **Flask** - Python web framework
 - **Haystack** - LLM orchestration and RAG pipeline
 - **ChromaDB** - Embedded vector database
-- **OpenRouter** - OpenAI API access
+- **SQLite** - Document metadata and chat history
+- **OpenRouter** - LLM generation (GPT-4o-mini)
+- **OpenAI API** - Text embeddings
 - **Perplexity API** - Web search with AI-generated comprehensive answers
 
 ## Project Structure
 
 ```
-big-head/
+bighead/
 ├── frontend/                 # React frontend
 │   ├── src/
 │   │   ├── components/      # UI components
 │   │   │   ├── ui/         # ShadCN UI components
-│   │   │   ├── DocumentUpload.tsx
+│   │   │   ├── App.tsx     # Main application with routing
+│   │   │   ├── HomeScreen.tsx
+│   │   │   ├── DocumentList.tsx
+│   │   │   ├── DocumentDashboard.tsx
+│   │   │   ├── DocumentEditor.tsx
 │   │   │   ├── QueryInterface.tsx
 │   │   │   ├── DocumentSummary.tsx
-│   │   │   └── AgentSuggestions.tsx
+│   │   │   ├── CreateFromSearch.tsx
+│   │   │   └── AdminPage.tsx
+│   │   ├── contexts/        # React Context
+│   │   │   └── DocumentContext.tsx
+│   │   ├── hooks/          # Custom hooks
+│   │   │   └── useDocuments.ts
 │   │   ├── services/        # API client
-│   │   └── App.tsx          # Main application
+│   │   │   └── api.ts
+│   │   ├── types/          # TypeScript type definitions
+│   │   └── lib/            # Utilities
 │   └── package.json
 │
 └── backend/                  # Flask backend
     ├── app/
     │   ├── routes/          # API endpoints
-    │   │   ├── documents.py
-    │   │   ├── query.py
-    │   │   ├── summarize.py
-    │   │   └── agent.py
+    │   │   ├── documents.py    # Document management
+    │   │   ├── query.py        # RAG queries
+    │   │   ├── summarize.py    # Document summarization
+    │   │   ├── health.py       # Health checks
+    │   │   └── admin.py        # Admin tools
     │   ├── services/        # Business logic
-    │   │   ├── rag_service.py      # RAG with Haystack + ChromaDB
-    │   │   ├── summarizer.py       # Document summarization
-    │   │   ├── agent.py            # Autonomous agent
-    │   │   └── mcp_tools.py        # Web search tools
-    │   └── __init__.py
+    │   │   ├── document_service.py     # Document management
+    │   │   ├── query_service.py        # Query orchestration
+    │   │   ├── summarizer.py           # Document summarization
+    │   │   ├── search/                 # Search services
+    │   │   │   ├── base.py
+    │   │   │   ├── perplexity.py
+    │   │   │   └── search_services_manager.py
+    │   │   ├── retrieval/              # RAG pipeline
+    │   │   │   ├── __init__.py
+    │   │   │   ├── chromadb_manager.py
+    │   │   │   ├── embeddings_manager.py
+    │   │   │   ├── text_chunker.py
+    │   │   │   └── query_expander.py
+    │   │   └── utils.py
+    │   ├── database/        # Database layer
+    │   │   └── database_service.py
+    │   ├── models/          # Data models
+    │   └── utils/           # Utilities
+    │   ├── __init__.py      # Flask app factory
+    │   └── config.py        # Configuration
     ├── uploads/             # Uploaded documents
-    ├── data/                # ChromaDB persistence
+    ├── data/                # Database and ChromaDB persistence
     └── requirements.txt
 ```
 
@@ -66,7 +99,8 @@ big-head/
 
 - **Node.js** 18+ and npm
 - **Python** 3.10+
-- **OpenRouter API Key** (for OpenAI models)
+- **OpenRouter API Key** (for LLM generation)
+- **OpenAI API Key** (for text embeddings)
 - **Perplexity API Key** (for web search)
 
 ### Backend Setup
@@ -95,6 +129,7 @@ big-head/
    Edit `.env` and add your API keys:
    ```env
    OPENROUTER_API_KEY=your_openrouter_api_key_here
+   OPENAI_API_KEY=your_openai_api_key_here
    PERPLEXITY_API_KEY=your_perplexity_api_key_here
    FLASK_ENV=development
    FLASK_DEBUG=True
@@ -141,32 +176,50 @@ big-head/
 1. **Upload a Document**:
    - Drag and drop a `.txt` or `.md` file, or click to browse
    - The document will be automatically indexed into the vector database
+   - Navigate to the document dashboard to view content
 
-2. **View Summary**:
-   - After upload, an AI-generated summary appears automatically
-   - Shows word count and line count
+2. **Document Editor**:
+   - Edit documents with the advanced markdown/text editor
+   - Real-time preview and syntax highlighting
+   - Changes are automatically saved and re-indexed
 
-3. **Ask Questions**:
-   - Type questions about your document in the query interface
+3. **View Summary**:
+   - AI-generated summaries appear automatically for each document
+   - Shows document statistics (word count, line count, chunk count)
+
+4. **Ask Questions**:
+   - Type questions about your document in the chat interface
    - Get AI-powered answers with source references in the format `[filename]:[line-start]-[line-end]`
+   - Chat history is preserved for each document
 
-4. **Explore Agent Suggestions**:
-   - The autonomous agent analyzes your document and suggests follow-up actions
-   - Click web search buttons to find additional context using Brave Search
-   - View search results inline
+5. **Create from Search**:
+   - Use web search to create new documents
+   - Enter a search query and let Perplexity AI generate comprehensive content
+   - Save the search results as a new document for further analysis
+
+6. **Admin Interface**:
+   - Access database management tools
+   - Inspect vector store data and embeddings
+   - Monitor system health and performance
 
 ## API Endpoints
 
 ### Documents
 - `POST /api/documents/upload` - Upload and index a document
+- `POST /api/documents/create-from-search` - Create a document from web search results
 - `GET /api/documents/` - List all indexed documents
+- `GET /api/documents/<filename>` - Get document content and metadata
+- `PUT /api/documents/<filename>` - Update document content
+- `DELETE /api/documents/<filename>` - Delete a document
+- `GET /api/documents/<filename>/data` - Get document with chat history
 
 ### Query
 - `POST /api/query` - Query documents with RAG
   ```json
   {
     "question": "What is the main topic?",
-    "top_k": 3
+    "document_id": "document_uuid",
+    "top_k": 5
   }
   ```
 
@@ -174,14 +227,19 @@ big-head/
 - `POST /api/summarize` - Generate document summary
   ```json
   {
-    "content": "document content here"
+    "content": "document content here",
+    "document_id": "document_uuid"
   }
   ```
 
-### Agent
-- `POST /api/agent/suggest` - Get action suggestions
-- `POST /api/agent/search-suggestions` - Get web search query suggestions
-- `POST /api/agent/web-search` - Perform web search via Brave API
+### Health
+- `GET /api/health` - System health check
+
+### Admin
+- `GET /api/admin/documents` - List all documents with full metadata
+- `GET /api/admin/embeddings` - View vector embeddings
+- `GET /api/admin/chat-history` - View chat history
+- `DELETE /api/admin/clear-all` - Clear all data (admin only)
 
 ## Key Features Explained
 
@@ -194,53 +252,99 @@ Sources:
   - introduction.txt:45-60
 ```
 
-### Autonomous Agent
-The AI agent analyzes documents and suggests:
-- Relevant follow-up research topics
-- Web searches for additional context
-- Actions to take based on document content
+### Document Context Management
+The application uses a centralized Context + Hooks pattern for state management:
+- **DocumentContext**: Central state store for all document-related data
+- **useDocuments Hook**: Custom hook that abstracts all API calls and manages state updates
+- **Real-time synchronization**: Automatic updates across all components when data changes
 
-### MCP-Style Web Search
-While using direct Brave Search API integration currently, the architecture supports future integration with proper MCP (Model Context Protocol) servers for enhanced tool capabilities.
+### Perplexity Web Search Integration
+- Comprehensive web search with AI-generated answers
+- Citation sources are included for transparency
+- Create documents directly from search results
+- Context-aware search capabilities
 
 ## Development Notes
 
-### Adding New MCP Tools
-To add more MCP-style tools, edit `backend/app/services/mcp_tools.py` and register new tools in the `MCP_TOOLS` dictionary.
+### Frontend Architecture
+The frontend follows a component-based architecture with:
+- **Type-first development**: TypeScript interfaces defined before implementation
+- **Context + Hooks pattern**: Centralized state management with DocumentContext
+- **Component composition**: Complex UI built from reusable primitives
+- **Enforced coding standards**: ESLint with consistent-type-imports rule
+
+### Backend Architecture
+The backend uses a layered service architecture:
+- **Flask Blueprints**: Modular routing organization
+- **Service Layer**: Business logic separation
+- **Database Service**: SQLite for metadata, ChromaDB for vectors
+- **Search Service Manager**: Pluggable search service architecture
 
 ### Customizing the RAG Pipeline
-Modify `backend/app/services/rag_service.py` to:
-- Change chunk sizes
-- Adjust retrieval parameters
-- Modify prompts
-- Use different embedding models
+Modify `backend/app/services/retrieval/` to:
+- Change chunking strategies in `text_chunker.py`
+- Adjust retrieval parameters in `__init__.py`
+- Modify prompts in the query pipeline
+- Add new embedding models in `embeddings_manager.py`
+
+### Adding New Search Services
+To add new search services:
+1. Create a new class extending `SearchService` in `backend/app/services/search/`
+2. Register it in `search_services_manager.py`
+3. Configure API keys in `.env`
 
 ### Styling
 The frontend uses Tailwind CSS with ShadCN UI components. Customize colors and themes in:
-- `frontend/tailwind.config.js`
-- `frontend/src/index.css`
+- `tailwind.config.js`
+- `src/index.css`
 
 ## Troubleshooting
 
 ### Backend Issues
 
-**Error: "PERPLEXITY_API_KEY not set"**
+**Error: "OPENROUTER_API_KEY not set"**
 - Make sure you've created a `.env` file in the `backend/` directory
-- Add your OpenRouter API key
+- Add your OpenRouter API key for LLM generation
+
+**Error: "OPENAI_API_KEY not set"**
+- Add your OpenAI API key for text embeddings
+- This is required for document indexing and queries
+
+**Error: "PERPLEXITY_API_KEY not set"**
+- Add your Perplexity API key for web search functionality
+- Without this, search features will return empty results
 
 **ChromaDB Permission Errors**
 - Ensure the `backend/data/` directory is writable
 - Try deleting `backend/data/chroma_db` and restarting
+- Check filesystem permissions
+
+**Database Connection Issues**
+- Ensure SQLite can create files in `backend/data/`
+- Check that the directory exists and is writable
+- Look for detailed error messages in the server logs
 
 ### Frontend Issues
 
 **API Connection Failed**
 - Make sure the backend is running on port 5177
 - Check CORS settings in `backend/app/__init__.py`
+- Verify the API URL in frontend `.env` file
 
 **TypeScript Errors**
 - Run `npm install` to ensure all dependencies are installed
 - Check that `@types/node` is installed for path resolution
+- Ensure all imports use proper type imports (separate type imports enforced)
+
+**Document Upload Fails**
+- Check file size (max 16MB)
+- Verify file extension is .txt or .md
+- Check backend logs for detailed error messages
+
+**Query Not Returning Results**
+- Verify the document was properly indexed
+- Check ChromaDB status in the admin interface
+- Try increasing the `top_k` parameter in queries
 
 ## Future Enhancements
 
@@ -248,9 +352,11 @@ The frontend uses Tailwind CSS with ShadCN UI components. Customize colors and t
 - [ ] Multi-user support with authentication
 - [ ] Document versioning and comparison
 - [ ] Export summaries and insights to PDF
-- [ ] Proper MCP server implementation
-- [ ] Chat history persistence
+- [ ] Enhanced search with multiple providers
 - [ ] Real-time collaboration features
+- [ ] Advanced document analytics
+- [ ] Custom embedding models
+- [ ] Document sharing and permissions
 
 ## License
 
@@ -261,6 +367,9 @@ MIT License - feel free to use this project for learning and portfolio purposes.
 Built with:
 - [Haystack](https://haystack.deepset.ai/) for RAG orchestration
 - [ChromaDB](https://www.trychroma.com/) for vector storage
-- [OpenRouter](https://openrouter.ai/) for LLM access
-- [Brave Search](https://brave.com/search/api/) for web search
+- [OpenRouter](https://openrouter.ai/) for LLM generation
+- [OpenAI](https://openai.com/) for text embeddings
+- [Perplexity AI](https://www.perplexity.ai/) for web search
 - [ShadCN UI](https://ui.shadcn.com/) for components
+- [React](https://react.dev/) for the frontend framework
+- [Flask](https://flask.palletsprojects.com/) for the backend framework
