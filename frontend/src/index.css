@@ -99,3 +99,36 @@ body {
   color: var(--color-foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
 }
+
+/* Markdown content styling */
+.markdown-content {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-content code {
+  word-break: break-all;
+}
+
+.markdown-content table {
+  font-size: 0.875rem;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.5rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-content blockquote {
+  border-left-width: 4px;
+}
+
+/* Highlight styling for source selection in editor */
+textarea.highlight-selection {
+  background-color: rgba(147, 211, 114, 0.1);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}

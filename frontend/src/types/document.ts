@@ -42,6 +42,7 @@ export interface ChatMessage {
     filename: string;
     line_start: number;
     line_end: number;
+    relevance_score?: number;
   }> | null;
   created_at: string;
 }

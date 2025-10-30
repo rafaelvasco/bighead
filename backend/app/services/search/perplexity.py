@@ -3,8 +3,10 @@
 import logging
 import os
 from typing import List
+import time
 
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from .base import SearchService, SearchResult
 
@@ -12,12 +14,14 @@ logger = logging.getLogger(__name__)
 
 
 class PerplexitySearch(SearchService):
-    """Search service using Perplexity API for comprehensive web search."""
+    """Search service using Perplexity API for comprehensive web search with retry logic."""
     
     def __init__(self):
         self.api_key = os.getenv('PERPLEXITY_API_KEY')
         self.base_url = "https://api.perplexity.ai/chat/completions"
         self.model = "sonar-pro"  # Recommended model for search
+        self.request_timeout = 30  # 30 second timeout for requests
+        self.max_retries = 3
     
     def is_configured(self) -> bool:
         """Check if the Perplexity API key is configured."""
@@ -27,9 +31,26 @@ class PerplexitySearch(SearchService):
         """Get the service name."""
         return "Perplexity API"
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.Timeout, requests.exceptions.ConnectionError))
+    )
+    def _make_request(self, headers: dict, payload: dict) -> dict:
+        """Make HTTP request with retry logic."""
+        start_time = time.time()
+        response = requests.post(self.base_url, headers=headers, json=payload, timeout=self.request_timeout)
+        elapsed_time = time.time() - start_time
+        
+        if elapsed_time > self.request_timeout * 0.8:  # Warn if taking more than 80% of timeout
+            logger.warning(f"Perplexity API request took {elapsed_time:.2f}s (close to timeout of {self.request_timeout}s)")
+        
+        response.raise_for_status()
+        return response.json()
+    
     def search(self, query: str, **kwargs) -> List[SearchResult]:
         """
-        Perform a web search using Perplexity API.
+        Perform a web search using Perplexity API with retry logic.
         
         Args:
             query: Search query string
@@ -70,20 +91,21 @@ class PerplexitySearch(SearchService):
                 "temperature": temperature
             }
             
-            response = requests.post(self.base_url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
+            # Use retry logic for the request
+            try:
+                data = self._make_request(headers, payload)
+            except requests.exceptions.HTTPError as e:
+                # Don't retry HTTP errors (400, 401, etc.) as they're likely config issues
+                if e.response.status_code == 401:
+                    logger.error(f"Perplexity API unauthorized: Invalid API key")
+                else:
+                    logger.error(f"HTTP error in Perplexity search: {str(e)}")
+                return []
             
-            data = response.json()
             return self._parse_response(data, query)
             
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 401:
-                logger.error(f"Perplexity API unauthorized: Invalid API key")
-            else:
-                logger.error(f"HTTP error in Perplexity search: {str(e)}")
-            return []  # Return empty list for all HTTP errors
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error performing Perplexity search: {str(e)}")
+            logger.error(f"Error performing Perplexity search after retries: {str(e)}")
             return []  # Return empty list for request errors
         except Exception as e:
             logger.error(f"Unexpected error in Perplexity search: {str(e)}", exc_info=True)
@@ -142,7 +164,8 @@ class PerplexitySearch(SearchService):
                         url=item.get("url", "")
                     ))
             else:
-                results.append(self._create_error_result("No content could be generated for this search query."))
+                logger.warning("No content could be generated for this search query")
+                return []
         
         logger.info(f"Generated {len(results)} results for Perplexity search")
         return results

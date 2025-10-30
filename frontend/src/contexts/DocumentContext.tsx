@@ -10,6 +10,7 @@ export interface DocumentState {
   chatHistory: ChatMessage[];
   isLoading: boolean;
   error: string | null;
+  highlightedLineRange: { start: number; end: number } | null;
 }
 
 interface DocumentContextValue extends DocumentState {
@@ -20,6 +21,7 @@ interface DocumentContextValue extends DocumentState {
   setChatHistory: (history: ChatMessage[]) => void;
   setIsLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setHighlightedLineRange: (range: { start: number; end: number } | null) => void;
   selectDocumentByFilename: (filename: string | null) => void;
   addDocument: (document: Document) => void;
   removeDocument: (filename: string) => void;
@@ -37,6 +39,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [highlightedLineRange, setHighlightedLineRange] = useState<{ start: number; end: number } | null>(null);
 
   const selectDocumentByFilename = useCallback((filename: string | null) => {
     if (!filename) {
@@ -109,6 +112,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     chatHistory,
     isLoading,
     error,
+    highlightedLineRange,
     setDocuments,
     setSelectedDocument,
     setDocumentContent,
@@ -116,6 +120,7 @@ export function DocumentProvider({ children }: { children: ReactNode }) {
     setChatHistory,
     setIsLoading,
     setError,
+    setHighlightedLineRange,
     selectDocumentByFilename,
     addDocument,
     removeDocument,

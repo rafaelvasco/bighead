@@ -41,10 +41,20 @@ def create_from_search():
 @bp.route('/', methods=['GET'])
 @handle_errors
 def list_documents():
-    """List all indexed documents."""
+    """List all indexed documents with pagination."""
+    # Get pagination parameters from query string
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Validate parameters
+    if page < 1:
+        page = 1
+    if per_page < 1 or per_page > 100:
+        per_page = 20
+    
     doc_service = get_document_service()
-    documents = doc_service.get_all_documents()
-    return jsonify({'documents': documents}), 200
+    result = doc_service.get_paginated_documents(page, per_page)
+    return jsonify(result), 200
 
 
 @bp.route('/<filename>', methods=['GET'])

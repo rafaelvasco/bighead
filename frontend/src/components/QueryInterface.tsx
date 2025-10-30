@@ -4,13 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useDocuments } from '../hooks/useDocuments';
+import { useDocumentContext } from '../contexts/DocumentContext';
+import { MarkdownRenderer } from './MarkdownRenderer';
+import { SourceHighlight } from './SourceHighlight';
 
 export function QueryInterface() {
   const { queryDocuments, selectedDocument, chatHistory } = useDocuments();
+  const { setHighlightedLineRange } = useDocumentContext();
   const [question, setQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const handleSourceClick = (lineStart: number, lineEnd: number) => {
+    setHighlightedLineRange({ start: lineStart, end: lineEnd });
+  };
 
   // Auto-scroll to bottom when chat history updates
   useEffect(() => {
@@ -77,16 +85,15 @@ export function QueryInterface() {
                       )}
                     </div>
                     <div className={`rounded-lg p-3 ${message.sender === 'human' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <p className="text-sm whitespace-pre-wrap">{message.message}</p>
-                      {message.sources && message.sources.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-border/40 space-y-1">
-                          <p className="text-xs font-semibold opacity-70">Sources:</p>
-                          {message.sources.map((source, idx) => (
-                            <div key={idx} className="text-xs opacity-80">
-                              <p className="font-mono">{source.reference}</p>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="text-sm">
+                        {message.sender === 'human' ? (
+                          <p className="whitespace-pre-wrap">{message.message}</p>
+                        ) : (
+                          <MarkdownRenderer content={message.message} />
+                        )}
+                      </div>
+                      {message.sender === 'ai' && (
+                        <SourceHighlight message={message} onSourceClick={handleSourceClick} />
                       )}
                     </div>
                   </div>

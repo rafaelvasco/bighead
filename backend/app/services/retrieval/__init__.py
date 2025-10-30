@@ -81,7 +81,7 @@ Question: {{ question }}
 
 Answer:"""
 
-        prompt_builder = PromptBuilder(template=template)
+        prompt_builder = PromptBuilder(template=template, required_variables=["documents", "question"])
         retriever = ChromaEmbeddingRetriever(document_store=self.document_store)
 
         self.query_pipeline = Pipeline()
@@ -108,12 +108,12 @@ Answer:"""
         Raises:
             Exception: If indexing fails
         """
-        logger.info(f"Indexing document: {filename}")
+        logger.debug(f"Indexing document: {filename}")
 
         try:
             # Use semantic chunking that preserves related information together
             chunks = self.text_chunker.split_text_semantically(content)
-            logger.info(f"Split document into {len(chunks)} chunks")
+            logger.debug(f"Split document into {len(chunks)} chunks")
 
             # Create Haystack documents
             documents = [
@@ -129,14 +129,14 @@ Answer:"""
                 for i, chunk in enumerate(chunks)
             ]
 
-            logger.info(f"Indexing {len(documents)} document chunks for {filename}")
+            logger.debug(f"Indexing {len(documents)} document chunks for {filename}")
             # Run indexing pipeline
             self.indexing_pipeline.run({"embedder": {"documents": documents}})
 
             # Verify documents were indexed
             doc_count = self.document_store.count_documents()
-            logger.info(f"Total documents in store after indexing: {doc_count}")
-            logger.info(f"Successfully indexed {len(chunks)} chunks for {filename}")
+            logger.debug(f"Total documents in store after indexing: {doc_count}")
+            logger.debug(f"Successfully indexed {len(chunks)} chunks for {filename}")
 
             return len(chunks)
         except Exception as e:
@@ -157,19 +157,19 @@ Answer:"""
         Raises:
             Exception: If query fails
         """
-        logger.info(f"Processing query: {question[:100]}...")
+        logger.debug(f"Processing query: {question[:100]}...")
 
         try:
             # Expand query for temporal work queries
             expanded_question = self.query_expander.expand_temporal_query(question)
             if expanded_question != question:
-                logger.info(f"Using expanded query: {expanded_question[:100]}...")
+                logger.debug(f"Using expanded query: {expanded_question[:100]}...")
 
             # Check document count before querying
             doc_count = self.document_store.count_documents()
 
             # Log query details for debugging
-            logger.info(f"Query details - Original: '{question}', Expanded: '{expanded_question}', Top_k: {top_k}")
+            logger.debug(f"Query details - Original: '{question}', Expanded: '{expanded_question}', Top_k: {top_k}")
             
             result = self.query_pipeline.run({
                 "text_embedder": {"text": expanded_question},
@@ -179,7 +179,7 @@ Answer:"""
 
             # Get documents from the retriever output
             documents = result.get("retriever", {}).get("documents", [])
-            logger.info(f"Retrieved {len(documents)} relevant chunks")
+            logger.debug(f"Retrieved {len(documents)} relevant chunks")
             
             # Log retrieved documents (debug level)
             for i, doc in enumerate(documents, 1):
@@ -201,20 +201,58 @@ Answer:"""
             # Get answer from LLM
             llm_output = result.get("llm", {})
             answer = llm_output.get("replies", [""])[0] if llm_output else "No response from LLM"
-            logger.info(f"Generated answer: {answer[:100]}...")
+            logger.debug(f"Generated answer: {answer[:100]}...")
+
+            # Extract relevance scores from document metadata
+            # ChromaDB uses L2 distance by default: lower score = higher relevance
+            # We need to invert: normalize distance then flip so higher = more relevant
+            sources = []
+            max_score = 1.0
+            min_score = 0.0
+            
+            # First pass: collect all scores to determine min/max for normalization
+            scores = []
+            for doc in documents:
+                score = doc.meta.get('score', None)
+                if score is not None:
+                    scores.append(float(score))
+            
+            # Determine normalization bounds
+            if scores:
+                max_score = max(scores)
+                min_score = min(scores)
+                logger.debug(f"Score range from retriever: {min_score} to {max_score}")
+            
+            # Second pass: build sources with normalized relevance scores
+            for i, doc in enumerate(documents):
+                score = doc.meta.get('score', None)
+                
+                # Normalize score to 0-1 range, then invert (L2: lower distance = higher relevance)
+                if score is not None and max_score != min_score:
+                    # Normalize distance to 0-1
+                    normalized_distance = (float(score) - min_score) / (max_score - min_score)
+                    # Invert: lower distance becomes higher relevance score
+                    relevance_score = 1.0 - normalized_distance
+                else:
+                    # Fallback: use positional relevance if no score available
+                    relevance_score = 1.0 - (i / max(len(documents), 1))
+                    normalized_distance = None
+                
+                distance_str = f"{normalized_distance:.3f}" if normalized_distance is not None else "N/A"
+                logger.debug(f"Document {i+1}: raw_score={score}, normalized_distance={distance_str}, relevance={relevance_score:.3f}")
+                
+                sources.append({
+                    "content": doc.content,
+                    "reference": f"{doc.meta.get('filename', 'unknown')}:{doc.meta.get('line_start', 0)}-{doc.meta.get('line_end', 0)}",
+                    "filename": doc.meta.get('filename', 'unknown'),
+                    "line_start": doc.meta.get('line_start', 0),
+                    "line_end": doc.meta.get('line_end', 0),
+                    "relevance_score": round(relevance_score, 3)
+                })
 
             return {
                 "answer": answer,
-                "sources": [
-                    {
-                        "content": doc.content[:200] + "..." if len(doc.content) > 200 else doc.content,
-                        "reference": f"{doc.meta.get('filename', 'unknown')}:{doc.meta.get('line_start', 0)}-{doc.meta.get('line_end', 0)}",
-                        "filename": doc.meta.get('filename', 'unknown'),
-                        "line_start": doc.meta.get('line_start', 0),
-                        "line_end": doc.meta.get('line_end', 0)
-                    }
-                    for doc in documents
-                ]
+                "sources": sources
             }
         except Exception as e:
             logger.error(f"Error querying RAG system: {str(e)}", exc_info=True)

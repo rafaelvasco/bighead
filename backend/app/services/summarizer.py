@@ -34,7 +34,7 @@ class SummarizerService:
         Raises:
             NotFoundError: If document doesn't exist
         """
-        logger.info(f"Generating summary for document {document_id}")
+        logger.debug(f"Generating summary for document {document_id}")
 
         # Verify document exists
         doc = self.db.get_document_by_id(document_id)
@@ -57,7 +57,7 @@ class SummarizerService:
             3. Main themes or topics
             """
 
-            logger.info(f"Calling LLM for summary generation")
+            logger.debug(f"Calling LLM for summary generation")
             response = self.client.chat.completions.create(
                 model=Config.MODEL_NAME,
                 messages=[
@@ -74,18 +74,19 @@ class SummarizerService:
             line_count = len(content.split('\n'))
 
             # Save summary to document
+            summary_saved = False
             try:
                 self.db.update_document(document_id, {'summary': summary_text})
-                logger.info(f"Summary saved to database for document {document_id}")
+                logger.debug(f"Summary saved to database for document {document_id}")
+                summary_saved = True
             except Exception as e:
                 logger.error(f"Failed to save summary to database: {str(e)}")
-                # Don't fail the request if save fails
-                pass
 
             return {
                 "summary": summary_text,
                 "word_count": word_count,
-                "line_count": line_count
+                "line_count": line_count,
+                "summary_saved": summary_saved
             }
 
         except Exception as e:

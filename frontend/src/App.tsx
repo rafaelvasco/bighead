@@ -20,7 +20,7 @@ function AppLayout() {
               <FileText className="h-6 w-6" />
               <h1 className="text-2xl font-bold">BigHead</h1>
               <span className="text-sm text-muted-foreground">
-                Interact with you Knowledge
+                Everything You Want to Remember
               </span>
             </Link>
             <Link to="/admin">

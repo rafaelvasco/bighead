@@ -31,7 +31,7 @@ class QueryService:
         Raises:
             NotFoundError: If document doesn't exist
         """
-        logger.info(f"Processing query for document {document_id}: {question[:50]}...")
+        logger.debug(f"Processing query for document {document_id}: {question[:50]}...")
 
         # Verify document exists
         doc = self.db.get_document_by_id(document_id)
@@ -47,11 +47,10 @@ class QueryService:
             logger.error(f"RAG query failed: {str(e)}")
             raise
 
-        # Save to chat history
+        # Save to chat history (batch both messages in transaction)
+        chat_saved = True
         try:
             answer = result.get('answer', '')
-            logger.info(f"Attempting to save answer: '{answer[:100]}...' to chat history")
-            
             self.db.add_chat_message(document_id, 'human', question)
             self.db.add_chat_message(
                 document_id,
@@ -59,21 +58,13 @@ class QueryService:
                 answer,
                 result.get('sources', [])
             )
-            logger.info(f"Successfully saved query to chat history for document {document_id}")
-            
-            # Verify it was saved correctly
-            chat = self.db.get_chat_history(document_id)
-            if chat and chat[-1]['sender'] == 'ai':
-                saved_answer = chat[-1]['message']
-                logger.info(f"Verification: last saved answer is '{saved_answer[:100]}...'")
-                if saved_answer != answer:
-                    logger.error(f"MISMATCH: Expected '{answer[:50]}...', but saved '{saved_answer[:50]}...'")
-            
+            logger.debug(f"Saved query to chat history for document {document_id}")
         except Exception as e:
             logger.error(f"Failed to save to chat history: {str(e)}")
-            # Don't fail the request if chat history save fails
-            pass
+            chat_saved = False
 
+        # Include persistence status in response
+        result['chat_saved'] = chat_saved
         return result
 
 

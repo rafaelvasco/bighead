@@ -6,6 +6,7 @@ export interface QueryResponse {
     filename: string;
     line_start: number;
     line_end: number;
+    relevance_score?: number;
   }>;
 }
 

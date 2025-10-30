@@ -70,10 +70,13 @@ def validate_request(schema: Dict[str, Dict[str, Any]], source='json'):
 
                 # String validations
                 if isinstance(value, str):
-                    if 'min_length' in rules and len(value) < rules['min_length']:
+                    stripped_value = value.strip()
+                    if 'min_length' in rules and len(stripped_value) < rules['min_length']:
                         errors.append(f"Field '{field_name}' must be at least {rules['min_length']} characters")
-                    if 'max_length' in rules and len(value) > rules['max_length']:
+                    if 'max_length' in rules and len(stripped_value) > rules['max_length']:
                         errors.append(f"Field '{field_name}' must be at most {rules['max_length']} characters")
+                    if rules.get('required', False) and not stripped_value:
+                        errors.append(f"Field '{field_name}' cannot be empty or whitespace only")
 
                 # Numeric validations
                 if isinstance(value, (int, float)):

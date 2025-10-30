@@ -18,11 +18,44 @@ class DocumentService:
         self.db = get_db_service()
         self.rag = get_rag_service()
         self.search_manager = get_search_service_manager()
+        logger.info("DocumentService initialized")
     
     def _get_current_timestamp(self) -> str:
         """Get current timestamp in a readable format"""
         from datetime import datetime
         return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    def _reindex_document(self, filename: str, content: str, is_new: bool = False) -> int:
+        """
+        Helper method to reindex a document in RAG and calculate metadata.
+        Handles deletion of old chunks (for updates) and indexing of new content.
+        
+        Args:
+            filename: Document filename
+            content: Document content
+            is_new: Whether this is a new document (skip deletion of old chunks)
+            
+        Returns:
+            Number of chunks created
+            
+        Raises:
+            ValidationError: If indexing fails
+        """
+        # Only delete old RAG chunks if updating an existing document
+        if not is_new:
+            try:
+                self.rag.delete_document(filename)
+            except Exception as e:
+                logger.warning(f"Failed to delete old chunks for {filename}: {str(e)}")
+        
+        # Index in RAG
+        try:
+            chunk_count = self.rag.index_document(filename, content)
+        except Exception as e:
+            logger.error(f"Failed to index document {filename}: {str(e)}")
+            raise ValidationError(f"Failed to index document: {str(e)}")
+        
+        return chunk_count
 
     def upload_document(self, file: FileStorage) -> Dict[str, Any]:
         """
@@ -38,7 +71,6 @@ class DocumentService:
             ValidationError: If file cannot be read or processed
         """
         filename = file.filename
-        logger.info(f"Starting upload for document: {filename}")
 
         # Read file content
         try:
@@ -50,28 +82,10 @@ class DocumentService:
         # Check if document exists
         existing_doc = self.db.get_document_by_filename(filename)
         is_update = existing_doc is not None
+        document_id = existing_doc['id'] if is_update else None
 
-        if is_update:
-            logger.info(f"Document {filename} exists, updating...")
-            document_id = existing_doc['id']
-
-            # Delete old RAG chunks
-            try:
-                self.rag.delete_document(filename)
-                logger.info(f"Deleted old RAG chunks for {filename}")
-            except Exception as e:
-                logger.warning(f"Failed to delete old chunks for {filename}: {str(e)}")
-        else:
-            logger.info(f"Creating new document: {filename}")
-            document_id = None
-
-        # Index in RAG
-        try:
-            chunk_count = self.rag.index_document(filename, content)
-            logger.info(f"Indexed {filename} with {chunk_count} chunks")
-        except Exception as e:
-            logger.error(f"Failed to index document {filename}: {str(e)}")
-            raise ValidationError(f"Failed to index document: {str(e)}")
+        # Reindex document (handles deletion of old chunks and indexing new content)
+        chunk_count = self._reindex_document(filename, content, is_new=not is_update)
 
         # Calculate document statistics
         word_count = len(content.split())
@@ -90,10 +104,8 @@ class DocumentService:
                     'content': content,
                     **metadata
                 })
-                logger.info(f"Updated database record for {filename}")
             else:
                 document_id = self.db.create_document(filename, content, metadata)
-                logger.info(f"Created database record for {filename} with ID {document_id}")
         except Exception as e:
             logger.error(f"Database operation failed for {filename}: {str(e)}")
             # Try to clean up RAG chunks if DB fails
@@ -181,13 +193,8 @@ class DocumentService:
         word_count = len(content.split())
         line_count = len(content.splitlines())
 
-        # Index in RAG
-        try:
-            chunk_count = self.rag.index_document(filename, content)
-            logger.info(f"Indexed search document with {chunk_count} chunks")
-        except Exception as e:
-            logger.error(f"Failed to index search document: {str(e)}")
-            raise ValidationError(f"Failed to index document: {str(e)}")
+        # Index in RAG (this is a new document, so skip deletion of old chunks)
+        chunk_count = self._reindex_document(filename, content, is_new=True)
 
         # Save to database
         metadata = {
@@ -198,7 +205,7 @@ class DocumentService:
 
         try:
             document_id = self.db.create_document(filename, content, metadata)
-            logger.info(f"Created search document {filename} with ID {document_id}")
+            logger.debug(f"Created search document {filename} with ID {document_id}")
         except Exception as e:
             logger.error(f"Failed to save search document: {str(e)}")
             # Clean up RAG chunks
@@ -219,31 +226,41 @@ class DocumentService:
         }
 
     def get_all_documents(self) -> List[Dict[str, Any]]:
-        """Get all documents with formatted data."""
-        logger.info("Fetching all documents")
-        documents = self.db.get_all_documents()
+        """Get all documents with formatted data (legacy method for backward compatibility)."""
+        result = self.db.get_all_documents(page=1, per_page=1000)  # Large page for backward compatibility
+        documents = result['documents']
 
         # Format timestamps
         for doc in documents:
             doc['uploaded_at'] = doc.get('created_at')
 
         return documents
+    
+    def get_paginated_documents(self, page: int = 1, per_page: int = 20) -> Dict[str, Any]:
+        """Get documents with pagination."""
+        result = self.db.get_all_documents(page=page, per_page=per_page)
+
+        # Format timestamps
+        for doc in result['documents']:
+            doc['uploaded_at'] = doc.get('created_at')
+
+        return result
 
     def get_document(self, filename: str) -> Dict[str, Any]:
         """
-        Get document by filename.
+        Get document by filename with content loaded from file storage.
 
         Args:
             filename: Document filename
 
         Returns:
-            Document data
+            Document data with full content
 
         Raises:
             NotFoundError: If document doesn't exist
         """
-        logger.info(f"Fetching document: {filename}")
-        document = self.db.get_document_by_filename(filename)
+        logger.debug(f"Fetching document: {filename}")
+        document = self.db.get_document_by_filename(filename, include_content=True)
 
         if not document:
             logger.warning(f"Document not found: {filename}")
@@ -253,25 +270,31 @@ class DocumentService:
 
     def get_document_with_chat(self, filename: str) -> Dict[str, Any]:
         """
-        Get document with chat history.
+        Get document with chat history, loading content from file storage.
 
         Args:
             filename: Document filename
 
         Returns:
-            Document data with chat history
+            Document data with chat history and full content. chat_history is always a list.
 
         Raises:
             NotFoundError: If document doesn't exist
         """
-        logger.info(f"Fetching document with chat: {filename}")
-        data = self.db.get_document_with_chat_by_filename(filename)
+        logger.debug(f"Fetching document with chat: {filename}")
+        document = self.db.get_document_by_filename(filename, include_content=True)
 
-        if not data:
+        if not document:
             logger.warning(f"Document not found: {filename}")
             raise NotFoundError(f"Document '{filename}' not found")
 
-        return data
+        # Get chat history (always returns a list by default)
+        chat_history = self.db.get_chat_history(document['id'])
+
+        return {
+            'document': document,
+            'chat_history': chat_history
+        }
 
     def update_document(self, filename: str, content: str) -> Dict[str, Any]:
         """
@@ -288,7 +311,7 @@ class DocumentService:
             NotFoundError: If document doesn't exist
             ValidationError: If update fails
         """
-        logger.info(f"Updating document: {filename}")
+        logger.debug(f"Updating document: {filename}")
         document = self.db.get_document_by_filename(filename)
 
         if not document:
@@ -297,20 +320,8 @@ class DocumentService:
 
         document_id = document['id']
 
-        # Delete old RAG chunks
-        try:
-            self.rag.delete_document(filename)
-            logger.info(f"Deleted old RAG chunks for {filename}")
-        except Exception as e:
-            logger.warning(f"Failed to delete old chunks: {str(e)}")
-
-        # Re-index with new content
-        try:
-            chunk_count = self.rag.index_document(filename, content)
-            logger.info(f"Re-indexed {filename} with {chunk_count} chunks")
-        except Exception as e:
-            logger.error(f"Failed to re-index document: {str(e)}")
-            raise ValidationError(f"Failed to re-index document: {str(e)}")
+        # Reindex document with new content (delete old chunks since this is an update)
+        chunk_count = self._reindex_document(filename, content, is_new=False)
 
         # Update database
         word_count = len(content.split())
@@ -323,7 +334,7 @@ class DocumentService:
                 'line_count': line_count,
                 'chunk_count': chunk_count
             })
-            logger.info(f"Updated document {filename} in database")
+            logger.debug(f"Updated document {filename} in database")
         except Exception as e:
             logger.error(f"Failed to update document in database: {str(e)}")
             raise ValidationError(f"Failed to update document: {str(e)}")
@@ -343,7 +354,7 @@ class DocumentService:
         Raises:
             NotFoundError: If document doesn't exist
         """
-        logger.info(f"Deleting document: {filename}")
+        logger.debug(f"Deleting document: {filename}")
         document = self.db.get_document_by_filename(filename)
 
         if not document:
@@ -355,14 +366,14 @@ class DocumentService:
         # Delete from RAG
         try:
             self.rag.delete_document(filename)
-            logger.info(f"Deleted RAG chunks for {filename}")
+            logger.debug(f"Deleted RAG chunks for {filename}")
         except Exception as e:
             logger.warning(f"Failed to delete RAG chunks: {str(e)}")
 
         # Delete from database (cascades to chat history)
         try:
             self.db.delete_document(document_id)
-            logger.info(f"Deleted document {filename} from database")
+            logger.debug(f"Deleted document {filename} from database")
         except Exception as e:
             logger.error(f"Failed to delete from database: {str(e)}")
             raise ValidationError(f"Failed to delete document: {str(e)}")
