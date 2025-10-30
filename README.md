@@ -22,3 +22,7 @@ A full-stack application that provides an AI+RAG (Retrieval-Augmented Generation
 - **OpenRouter** - LLM generation (GPT-4o-mini)
 - **OpenAI API** - Text embeddings
 - **Perplexity API** - Web search with AI-generated comprehensive answers
+
+### Deep Dive into the code:
+
+https://deepwiki.com/rafaelvasco/bighead
