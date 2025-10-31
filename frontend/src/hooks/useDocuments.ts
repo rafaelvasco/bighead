@@ -172,7 +172,7 @@ export function useDocuments() {
         }
       ];
       
-      setChatHistory(prev => [...prev, ...newMessages]);
+      setChatHistory([...chatHistory, ...newMessages]);
 
       // Optionally reload in background to get correct IDs, but don't replace the UI
       if (selectedDocument?.filename) {
@@ -180,13 +180,9 @@ export function useDocuments() {
           .then(data => {
             // Only update if the messages are different (to avoid flicker)
             // This ensures we have the correct IDs from the database
-            setChatHistory(prev => {
-              // If we have the same number of messages, assume they're the same
-              if (prev.length === data.chat_history.length) {
-                return prev;
-              }
-              return data.chat_history;
-            });
+            if (data.chat_history.length !== chatHistory.length) {
+              setChatHistory(data.chat_history);
+            }
           })
           .catch(err => {
             console.error('Failed to reload chat history:', err);

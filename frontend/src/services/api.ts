@@ -1,7 +1,6 @@
 import type { 
   UploadResponse, 
   Document, 
-  ChatMessage, 
   DocumentData 
 } from '../types/document';
 import type { 

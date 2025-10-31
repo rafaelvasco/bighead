@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { FileEdit, Loader2, Save } from "lucide-react";
+import { FileEdit, Loader2, Save, Sparkles, Plus, Minus } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -15,14 +15,16 @@ import "@uiw/react-md-editor/markdown-editor.css";
 import "@uiw/react-markdown-preview/markdown.css";
 
 export function DocumentEditor() {
-  const { documentContent, selectedDocument, updateDocumentContent } =
+  const { documentContent, selectedDocument, updateDocumentContent, generateSummary } =
     useDocuments();
   const { highlightedLineRange, setHighlightedLineRange } =
     useDocumentContext();
   const [content, setContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [fontSize, setFontSize] = useState(14);
   const editorContainerRef = useRef<HTMLDivElement | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -153,6 +155,24 @@ export function DocumentEditor() {
     }
   }, [highlightedLineRange, content]);
 
+  useEffect(() => {
+    let styleEl = document.getElementById("md-editor-font-size");
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = "md-editor-font-size";
+      document.head.appendChild(styleEl);
+    }
+
+    const lineHeight = fontSize + 4;
+    styleEl.textContent = `
+      body .w-md-editor-text-pre > code,
+      body .w-md-editor-text-input {
+        font-size: ${fontSize}px !important;
+        line-height: ${lineHeight}px !important;
+      }
+    `;
+  }, [fontSize]);
+
   const handleSave = async () => {
     if (!selectedDocument?.filename || !hasChanges) return;
 
@@ -167,6 +187,29 @@ export function DocumentEditor() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!selectedDocument?.id || !content) return;
+
+    setIsGeneratingSummary(true);
+    setError(null);
+
+    try {
+      await generateSummary(content, selectedDocument.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate summary");
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
+  const increaseFontSize = () => {
+    setFontSize((prev) => Math.min(prev + 1, 24));
+  };
+
+  const decreaseFontSize = () => {
+    setFontSize((prev) => Math.max(prev - 1, 12));
   };
 
   return (
@@ -186,6 +229,45 @@ export function DocumentEditor() {
                 * Unsaved changes
               </span>
             )}
+            <div className="flex items-center gap-1 border border-input rounded-md px-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={decreaseFontSize}
+                disabled={fontSize <= 12}
+                className="h-8 w-8 p-0"
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="text-xs font-medium w-8 text-center">{fontSize}px</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={increaseFontSize}
+                disabled={fontSize >= 24}
+                className="h-8 w-8 p-0"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateSummary}
+              disabled={isGeneratingSummary || !content}
+            >
+              {isGeneratingSummary ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate Summary
+                </>
+              )}
+            </Button>
             <Button
               variant="default"
               size="sm"
@@ -226,7 +308,6 @@ export function DocumentEditor() {
             data-color-mode="light"
             textareaProps={{
               style: {
-                fontSize: "0.875rem",
                 fontFamily:
                   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
               },

@@ -1,17 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Brain, User, Bot } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { useDocuments } from '../hooks/useDocuments';
-import { useDocumentContext } from '../contexts/DocumentContext';
-import { MarkdownRenderer } from './MarkdownRenderer';
-import { SourceHighlight } from './SourceHighlight';
+import { useState, useEffect, useRef } from "react";
+import { Send, Loader2, Brain, User, Bot } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { useDocuments } from "../hooks/useDocuments";
+import { useDocumentContext } from "../contexts/DocumentContext";
+import { MarkdownRenderer } from "./MarkdownRenderer";
+import { SourceHighlight } from "./SourceHighlight";
 
 export function QueryInterface() {
   const { queryDocuments, selectedDocument, chatHistory } = useDocuments();
   const { setHighlightedLineRange } = useDocumentContext();
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -22,14 +28,14 @@ export function QueryInterface() {
 
   // Auto-scroll to bottom when chat history updates
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory]);
 
   const handleQuery = async () => {
     if (!question.trim()) return;
 
     if (!selectedDocument?.id) {
-      setError('Please select a document first');
+      setError("Please select a document first");
       return;
     }
 
@@ -38,23 +44,25 @@ export function QueryInterface() {
 
     try {
       await queryDocuments(question, selectedDocument.id);
-      setQuestion(''); // Clear input after successful query
+      setQuestion(""); // Clear input after successful query
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to query documents');
+      setError(
+        err instanceof Error ? err.message : "Failed to query documents"
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleQuery();
     }
   };
 
   return (
-    <Card className="flex flex-col h-full">
+    <Card className="flex flex-col">
       <CardHeader>
         <CardTitle>Chat with Document</CardTitle>
         <CardDescription>
@@ -65,7 +73,7 @@ export function QueryInterface() {
         {/* Chat History */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-2">
           {chatHistory.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
+            <div className="text-center text-muted-foreground py-5">
               <Brain className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p>No questions asked yet. Start a conversation!</p>
             </div>
@@ -74,26 +82,45 @@ export function QueryInterface() {
               {chatHistory.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-3 ${message.sender === 'human' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex gap-3 ${
+                    message.sender === "human" ? "justify-end" : "justify-start"
+                  }`}
                 >
-                  <div className={`flex gap-2 max-w-[85%] ${message.sender === 'human' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div
+                    className={`flex gap-2 max-w-[85%] ${
+                      message.sender === "human"
+                        ? "flex-row-reverse"
+                        : "flex-row"
+                    }`}
+                  >
                     <div className="shrink-0 mt-1">
-                      {message.sender === 'human' ? (
+                      {message.sender === "human" ? (
                         <User className="h-5 w-5 text-primary" />
                       ) : (
                         <Bot className="h-5 w-5 text-secondary" />
                       )}
                     </div>
-                    <div className={`rounded-lg p-3 ${message.sender === 'human' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                    <div
+                      className={`rounded-lg p-3 ${
+                        message.sender === "human"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      }`}
+                    >
                       <div className="text-sm">
-                        {message.sender === 'human' ? (
-                          <p className="whitespace-pre-wrap">{message.message}</p>
+                        {message.sender === "human" ? (
+                          <p className="whitespace-pre-wrap">
+                            {message.message}
+                          </p>
                         ) : (
                           <MarkdownRenderer content={message.message} />
                         )}
                       </div>
-                      {message.sender === 'ai' && (
-                        <SourceHighlight message={message} onSourceClick={handleSourceClick} />
+                      {message.sender === "ai" && (
+                        <SourceHighlight
+                          message={message}
+                          onSourceClick={handleSourceClick}
+                        />
                       )}
                     </div>
                   </div>

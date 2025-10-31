@@ -1,4 +1,4 @@
-import type { QueryResponse } from './query';
+
 
 export interface Document {
   id: string;

@@ -22,7 +22,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
           p: ({ children }) => <p className="mb-2">{children}</p>,
           strong: ({ children }) => <strong className="font-bold text-foreground">{children}</strong>,
           em: ({ children }) => <em className="italic">{children}</em>,
-          code: ({ children, inline }) =>
+          code: ({ children, inline }: any) =>
             inline ? (
               <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">{children}</code>
             ) : (

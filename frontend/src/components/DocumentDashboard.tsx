@@ -1,13 +1,20 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { DocumentEditor } from "./DocumentEditor";
+import { SummaryPanel } from "./SummaryPanel";
 import { QueryInterface } from "./QueryInterface";
 import { useDocuments } from "../hooks/useDocuments";
 
 export function DocumentDashboard() {
   const { id } = useParams<{ id: string }>();
-  const { documentContent, selectedDocument, selectDocument, documents } =
-    useDocuments();
+  const [summaryExpanded, setSummaryExpanded] = useState(true);
+  const {
+    documentContent,
+    selectedDocument,
+    selectDocument,
+    documents,
+    summary,
+  } = useDocuments();
 
   // Select the document based on URL parameter
   useEffect(() => {
@@ -45,14 +52,30 @@ export function DocumentDashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-180px)]">
+    <div className="flex flex-col gap-4">
       {/* Top Section - Document Editor */}
-      <div className="h-[55%] min-h-0">
+      <div className="h-[1000px]">
         <DocumentEditor />
       </div>
 
+      {/* Summary Panel - Conditionally Rendered */}
+      {summary && (
+        <div
+          className={`transition-all duration-300 overflow-hidden ${
+            summaryExpanded ? "max-h-[700px]" : "h-[100px]"
+          }`}
+        >
+          <SummaryPanel
+            summary={summary}
+            filename={selectedDocument?.filename}
+            isExpanded={summaryExpanded}
+            onExpandedChange={setSummaryExpanded}
+          />
+        </div>
+      )}
+
       {/* Bottom Section - Chat Interface */}
-      <div className="h-[45%] min-h-0">
+      <div>
         <QueryInterface />
       </div>
     </div>
